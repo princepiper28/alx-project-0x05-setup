@@ -9,7 +9,37 @@ const Home: React.FC = () => {
   const [isLoading, setIsLoading] = useState<boolean>(false);
 
   const handleGenerateImage = async () => {
-    console.log("Generating Images");
+    if (!prompt.trim()) return;
+
+    setIsLoading(true);
+    try {
+      const resp = await fetch("/api/generate-image", {
+        method: "POST",
+        body: JSON.stringify({ prompt }),
+        headers: {
+          "Content-type": "application/json",
+        },
+      });
+
+      if (!resp.ok) {
+        console.error("Image generation failed");
+        setIsLoading(false);
+        return;
+      }
+
+      const data = await resp.json();
+      if (data?.imageUrl) {
+        setImageUrl(data.imageUrl);
+        setGeneratedImages((prev) => [
+          { imageUrl: data.imageUrl, prompt },
+          ...prev,
+        ]);
+      }
+    } catch (err) {
+      console.error("Error generating image:", err);
+    } finally {
+      setIsLoading(false);
+    }
   };
 
   return (
@@ -31,18 +61,36 @@ const Home: React.FC = () => {
           <button
             onClick={handleGenerateImage}
             className="w-full p-3 bg-blue-600 text-white rounded-lg hover:bg-blue-700 transition duration-200"
+            disabled={isLoading}
           >
-            {/* {isLoading ? "Loading..." : "Generate Image"} */}
-            Generate Image
+            {isLoading ? "Loading..." : "Generate Image"}
           </button>
         </div>
 
+        {/* Display last generated image */}
         {imageUrl && (
-          <ImageCard
-            action={() => setImageUrl(imageUrl)}
-            imageUrl={imageUrl}
-            prompt={prompt}
-          />
+          <div className="mt-6">
+            <ImageCard
+              action={() => setImageUrl(imageUrl)}
+              imageUrl={imageUrl}
+              prompt={prompt}
+            />
+          </div>
+        )}
+
+        {/* Display history of generated images */}
+        {generatedImages.length > 0 && (
+          <div className="mt-8 grid gap-4 md:grid-cols-2">
+            {generatedImages.map((img, index) => (
+              <ImageCard
+                key={index}
+                action={() => setImageUrl(img.imageUrl)}
+                imageUrl={img.imageUrl}
+                prompt={img.prompt}
+                width="small"
+              />
+            ))}
+          </div>
         )}
       </div>
     </div>
